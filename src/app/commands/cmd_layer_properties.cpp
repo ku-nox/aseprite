@@ -1,5 +1,5 @@
 // Aseprite
-// Copyright (C) 2020-2024  Igara Studio S.A.
+// Copyright (C) 2020-2025  Igara Studio S.A.
 // Copyright (C) 2001-2018  David Capello
 //
 // This program is distributed under the terms of
@@ -135,7 +135,15 @@ public:
 
     remapWindow();
     centerWindow();
+
+    gfx::Rect originalBounds = bounds();
+
     load_window_pos(this, "LayerProperties");
+
+    // Queue a remap for after the user data view is configured
+    // if the window size has been reset and user data is visible
+    if (originalBounds == bounds() && Preferences::instance().layers.userDataVisibility())
+      m_remapAfterConfigure = true;
 
     UIContext::instance()->add_observer(this);
   }
@@ -158,7 +166,12 @@ public:
       m_document->add_observer(this);
 
     if (countLayers() > 0) {
-      m_userDataView.configureAndSet(m_layer->userData(), g_window->propertiesGrid());
+      m_userDataView.configureAndSet(m_layer->userData(), propertiesGrid());
+      if (m_remapAfterConfigure) {
+        remapWindow();
+        centerWindow();
+        m_remapAfterConfigure = false;
+      }
     }
 
     updateFromLayer();
@@ -355,8 +368,7 @@ private:
   {
     if (m_layer) {
       m_userDataView.toggleVisibility();
-      g_window->remapWindow();
-      manager()->invalidate();
+      expandWindow(gfx::Size(bounds().w, sizeHint().h));
     }
   }
 
@@ -484,6 +496,7 @@ private:
   view::RealRange m_range;
   bool m_selfUpdate = false;
   UserDataView m_userDataView;
+  bool m_remapAfterConfigure = false;
 };
 
 LayerPropertiesCommand::LayerPropertiesCommand()

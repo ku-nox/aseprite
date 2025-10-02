@@ -15,6 +15,7 @@
 #include "os/system.h"
 #include "text/draw_text.h"
 #include "text/font.h"
+#include "text/font_metrics.h"
 #include "ui/clipboard_delegate.h"
 #include "ui/display.h"
 #include "ui/menu.h"
@@ -34,6 +35,12 @@
 #include <memory>
 
 namespace ui {
+
+// Maximum width for Entry fields as size hint (like half the screen /
+// a screen of 800x600).  We were using Display::workareaSizeUIScale()
+// but that might be slow on Linux/X11 for each mouse motion/window
+// resize event to ask.
+static int kMaxWidthHintForEntry = 400;
 
 // Shared timer between all entries.
 static std::unique_ptr<Timer> s_timer;
@@ -121,6 +128,15 @@ int Entry::lastCaretPos() const
   return int(m_boxes.size() - 1);
 }
 
+gfx::Point Entry::caretPosOnScreen() const
+{
+  const gfx::Point caretPos = getCharBoxBounds(m_caret).point2();
+  const os::Window* nativeWindow = display()->nativeWindow();
+  const gfx::Point pos = nativeWindow->pointToScreen(caretPos + bounds().origin());
+
+  return pos;
+}
+
 void Entry::setCaretPos(const int pos)
 {
   gfx::Size caretSize = theme()->getEntryCaretSize(this);
@@ -152,6 +168,8 @@ void Entry::setCaretPos(const int pos)
   if (shouldStartTimer(hasFocus()))
     startTimer();
   m_state = true;
+
+  os::System::instance()->setTextInput(true, caretPosOnScreen());
 
   invalidate();
 }
@@ -244,7 +262,7 @@ gfx::Rect Entry::getEntryTextBounds() const
   return onGetEntryTextBounds();
 }
 
-gfx::Rect Entry::getCharBoxBounds(const int i)
+gfx::Rect Entry::getCharBoxBounds(const int i) const
 {
   ASSERT(i >= 0 && i < int(m_boxes.size()));
   if (i >= 0 && i < int(m_boxes.size()))
@@ -281,8 +299,9 @@ bool Entry::onProcessMessage(Message* msg)
       }
 
       // Start processing dead keys
-      if (m_translate_dead_keys)
-        os::System::instance()->setTranslateDeadKeys(true);
+      if (m_translate_dead_keys) {
+        os::System::instance()->setTextInput(true, caretPosOnScreen());
+      }
       break;
 
     case kFocusLeaveMessage:
@@ -297,7 +316,7 @@ bool Entry::onProcessMessage(Message* msg)
 
       // Stop processing dead keys
       if (m_translate_dead_keys)
-        os::System::instance()->setTranslateDeadKeys(false);
+        os::System::instance()->setTextInput(false);
       break;
 
     case kKeyDownMessage:
@@ -505,7 +524,7 @@ gfx::Size Entry::sizeHintWithText(Entry* entry, const std::string& text)
   int w = font->textLength(text) + +2 * entry->theme()->getEntryCaretSize(entry).w +
           entry->border().width();
 
-  w = std::min(w, entry->display()->workareaSizeUIScale().w / 2);
+  w = std::min(w, guiscale() * kMaxWidthHintForEntry);
 
   const int h = font->lineHeight() + entry->border().height();
 
@@ -521,7 +540,7 @@ void Entry::onSizeHint(SizeHintEvent& ev)
 
   int w = font->textLength("w") * std::min(m_maxsize, 6) + +trailing + border().width();
 
-  w = std::min(w, display()->workareaSizeUIScale().w / 2);
+  w = std::min(w, guiscale() * kMaxWidthHintForEntry);
 
   int h = font->lineHeight() + border().height();
 
@@ -547,6 +566,18 @@ void Entry::onSetText()
   int textlen = lastCaretPos();
   if (m_caret >= 0 && m_caret > textlen)
     m_caret = textlen;
+}
+
+float Entry::onGetTextBaseline() const
+{
+  text::FontMetrics metrics;
+  font()->metrics(&metrics);
+  // Here we only use the descent+ascent to measure the text height,
+  // without the metrics.leading part (which is the used to separate
+  // text lines in a paragraph, but here'd make widgets too big)
+  const float textHeight = metrics.descent - metrics.ascent;
+  const gfx::Rect rc = getEntryTextBounds();
+  return guiscaled_center(rc.y, rc.h, textHeight) - metrics.ascent;
 }
 
 void Entry::onChange()

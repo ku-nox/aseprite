@@ -74,7 +74,7 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${output_fn}.tmp ${output_fn}
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   MAIN_DEPENDENCY ${strings_en_ini}
-  DEPENDS ${GEN_DEP})
+  DEPENDS ${GEN_DEP} commands/commands_list.h)
 list(APPEND generated_files ${output_fn})
 
 # Check translations
@@ -108,7 +108,7 @@ endif()
 # This defines a specific webp decoding utility function for using
 # in Windows when dragging and dropping images that are stored as
 # webp files (like Chrome does).
-if(WIN32 AND ENABLE_WEBP)
+if(WIN32 AND ENABLE_WEBP AND LAF_BACKEND STREQUAL "skia")
   target_sources(app-lib PRIVATE util/decode_webp.cpp)
 endif()
 
@@ -290,7 +290,6 @@ target_sources(app-lib PRIVATE
   cmd/copy_region.cpp
   cmd/crop_cel.cpp
   cmd/deselect_mask.cpp
-  cmd/drop_on_timeline.cpp
   cmd/flatten_layers.cpp
   cmd/flip_image.cpp
   cmd/flip_mask.cpp
@@ -369,6 +368,7 @@ target_sources(app-lib PRIVATE
   color_picker.cpp
   color_spaces.cpp
   color_utils.cpp
+  commands/apply.cpp
   commands/cmd_about.cpp
   commands/cmd_add_color.cpp
   commands/cmd_advanced_mode.cpp
@@ -394,6 +394,7 @@ target_sources(app-lib PRIVATE
   commands/cmd_deselect_mask.cpp
   commands/cmd_discard_brush.cpp
   commands/cmd_duplicate_layer.cpp
+  commands/cmd_duplicate_slice.cpp
   commands/cmd_duplicate_sprite.cpp
   commands/cmd_duplicate_view.cpp
   commands/cmd_enter_license.cpp
@@ -526,6 +527,7 @@ target_sources(app-lib PRIVATE
   context_flags.cpp
   doc.cpp
   doc_api.cpp
+  doc_api_dnd_helper.cpp
   doc_diff.cpp
   doc_exporter.cpp
   doc_range_ops.cpp
@@ -651,6 +653,7 @@ target_sources(app-lib PRIVATE
   ui/icon_button.cpp
   ui/incompat_file_window.cpp
   ui/input_chain.cpp
+  ui/key.cpp
   ui/keyboard_shortcuts.cpp
   ui/layer_frame_comboboxes.cpp
   ui/main_menu_bar.cpp
@@ -669,7 +672,7 @@ target_sources(app-lib PRIVATE
   ui/rgbmap_algorithm_selector.cpp
   ui/sampling_selector.cpp
   ui/search_entry.cpp
-  ui/select_accelerator.cpp
+  ui/select_shortcut.cpp
   ui/selection_mode_field.cpp
   ui/skin/skin_part.cpp
   ui/skin/skin_property.cpp
@@ -684,6 +687,7 @@ target_sources(app-lib PRIVATE
   ui/tile_button.cpp
   ui/tileset_selector.cpp
   ui/timeline/ani_controls.cpp
+  ui/timeline/doc_providers.cpp
   ui/timeline/timeline.cpp
   ui/toolbar.cpp
   ui/user_data_view.cpp
@@ -706,6 +710,7 @@ target_sources(app-lib PRIVATE
   util/layer_utils.cpp
   util/msk_file.cpp
   util/new_image_from_mask.cpp
+  util/open_file_job.cpp
   util/pal_ops.cpp
   util/pic_file.cpp
   util/pixel_ratio.cpp
@@ -713,6 +718,7 @@ target_sources(app-lib PRIVATE
   util/render_text.cpp
   util/resize_image.cpp
   util/shader_helpers.cpp
+  util/slice_utils.cpp
   util/tile_flags_utils.cpp
   util/tileset_utils.cpp
   util/wrap_point.cpp
